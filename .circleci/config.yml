@@ -1,0 +1,73 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: cimg/node:24.11.0
+    working_directory: ~/public
+
+    steps:
+      - checkout
+
+      - run:
+          name: Update npm
+          command: npm install -g npm@latest
+
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+
+      - run:
+          name: Install dependencies
+          command: npm ci
+
+      - run:
+          name: Run tests
+          command: npm test
+
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+
+      - store_artifacts:
+          path: test-results.xml
+          prefix: tests
+
+      - store_artifacts:
+          path: coverage
+          prefix: coverage
+
+      - store_test_results:
+          path: test-results.xml
+
+
+  # 🐳 Deploy job using machine executor (so Docker works)
+  deploy:
+    machine:
+      image: ubuntu-2204:current   # ✅ gives full VM with Docker pre-installed
+    steps:
+      - checkout
+
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t dancraftdocker/maths:latest .
+
+      - run:
+          name: Push Docker image to Docker Hub
+          command: |
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+            docker push dancraftdocker/maths:latest
+
+
+workflows:
+  version: 2
+  build_and_deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: main
