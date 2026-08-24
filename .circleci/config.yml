@@ -17,7 +17,14 @@ jobs:
       - run:
           name: Install dependencies
           command: npm ci --include=dev
-
+      - run:
+    name: Check Jest installation
+    command: |
+      echo "NODE_ENV=$NODE_ENV"
+      npm config get omit
+      npm ls jest
+      ls -la node_modules/.bin/jest
+      
       - run:
           name: Run tests
           command: npm test
